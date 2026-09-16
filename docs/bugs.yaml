@@ -1,3 +1,66 @@
+- uid: SOL-2026-6
+  name: MisorderedNamedParametersInRequireWithCustomErrors
+  summary: Custom error arguments passed to ``require`` using named-parameter syntax are ABI-encoded in call-site order instead of declaration order when compiling via IR.
+  description: >-
+    When a custom error was passed into the second argument of ``require`` and instantiated using named parameter syntax (e.g., ``require(condition, MyError({b: 1, a: 2}))``), the IR-based code generator would pass the arguments to the ABI encoder in the order they appeared at the call site, without reordering them to match the error definition.
+    The arguments were type-checked against the parameters with matching names, not the ones they were actually passed into by the codegen, so the bug would not result in a compilation error.
+    Instead, the encoder would produce a structurally valid encoding matching the error signature but not reflecting the values used to instantiate the error.
+    The arguments on the stack would be reordered and possibly reinterpreted as different types by the encoder.
+    In case of reference types, the reinterpretation would result in the content being obtained from wrong offsets in memory, storage or calldata.
+    In some cases large values misinterpreted as offsets or lengths would make the encoder revert due to running out of gas.
+    Types that occupy more than one slot on the stack would further complicate the behavior by leading to not only reordering but also misalignment of argument boundaries.
+    The only unaffected types were string literals, which are not being passed to the encoder through the stack.
+    The bug was specific to custom errors passed as the second argument of ``require``.
+    Standalone ``revert ErrorName({...})`` statements, event emissions, function calls, struct constructor invocations and other constructs supporting named parameters were not affected.
+    The evmasm pipeline was also unaffected.
+  link: https://blog.soliditylang.org/2026/09/10/misordered-named-parameters-in-require-with-custom-errors-bug/
+  introduced: 0.8.26
+  fixed: 0.8.37
+  severity: very low
+  conditions:
+    viaIR: true
+
+- uid: SOL-2026-5
+  name: MemoryByteArrayElementDeleteClearsWholeWord
+  summary: Applying ``delete`` to a single element of a ``bytes`` array in memory clears not only that element but the whole 32-byte word starting at the element's location, zeroing up to 31 bytes beyond the element.
+  description: >-
+    Elements of ``bytes`` arrays in memory are packed, each occupying a single byte.
+    When a value is assigned to such an element, the evmasm code generator correctly stores it with a single-byte ``MSTORE8`` instruction.
+    The code path in the evmasm pipeline implementing ``delete`` on such an element, however, wrote the zero value with a full-word ``MSTORE``, clearing the 32 bytes starting at the element's location.
+    The bytes following the element within the array were silently zeroed.
+    If the element was within the last 31 bytes of the array's allocation, the write also extended past it into the area where the allocator places the next memory object, clearing the most significant bytes of that object's first word.
+    How many elements are in reach depends on the size of the allocation: arrays created with ``new bytes(n)`` or from literals occupy their length rounded up to a multiple of 32 bytes, so only elements falling within the last 31 bytes of that rounded-up area, if any, could be affected.
+    The results of ``bytes.concat``, ``string.concat``, and the ``abi.encode*`` functions, on the other hand, are placed by the evmasm pipeline in an allocation of exactly the size of their data, so the next object starts immediately after their last element and each of their last 31 elements is in reach.
+    Assigning zero to an element (``b[i] = 0``) was not affected, only the ``delete`` operator, and neither were byte arrays in transient storage, storage, or calldata.
+    The bug exists only in the evmasm pipeline.
+    Code compiled via IR is unaffected.
+    Optimizer settings have no influence.
+    The defective code predates the first released version of the compiler.
+  link: https://blog.soliditylang.org/2026/09/10/memory-byte-array-element-delete-clears-whole-word-bug/
+  fixed: 0.8.37
+  severity: low/medium
+  conditions:
+    viaIR: false
+
+- uid: SOL-2026-4
+  name: SpillSlotCollisionAcrossMutualRecursion
+  summary: Local variables of two simultaneously active functions moved to fixed memory offsets by the stack limit evader may be assigned the same offset if the call graph contains mutual recursion, so that one variable is silently overwritten by the other.
+  description: >-
+    To work around the 16-slot stack access limit of the EVM, the IR-based code generator can, under some preconditions, move local variables to fixed memory offsets.
+    Variables that can never be active at the same time may safely share an offset, so the reserved memory area is sized by a depth-first walk of the call graph that computes for every node the number of slots it and its callees need.
+    To keep this walk from descending infinitely into recursive call chains, the slot count was initialized with zero upon entering it.
+    This provisional zero was observable: a function reached again through a call graph cycle reported an empty footprint to its caller, the caller's count was finalized and cached on that basis, and the undercount propagated to every later caller, including functions outside the cycle.
+    As a result, a function called by such a cycle and a function calling into it could be assigned the same memory slot even though both can be active at the same time.
+    A relocated variable still needed after the call into the cycle returned had then been silently overwritten by the called function, producing wrong results.
+    Triggering the bug requires the IR pipeline and a call graph in which a cycle of at least two mutually recursive functions both reaches a function needing relocation of variables to memory and is entered from a separate call chain whose own relocated variable is read again after the call towards the cycle returns.
+    From 0.8.21 onward, it is independent of whether the optimizer is enabled.
+  link: https://blog.soliditylang.org/2026/09/10/spill-slot-collision-across-mutual-recursion-bug/
+  introduced: 0.7.2
+  fixed: 0.8.37
+  severity: low/medium
+  conditions:
+    viaIR: true
+
 - uid: SOL-2026-3
   name: InheritanceOrderReversalOnStorageEndWarning
   summary: >-

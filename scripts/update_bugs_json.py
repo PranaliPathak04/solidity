@@ -23,7 +23,7 @@ def update_bugs(input_path=BUGS_YAML, output_path=BUGS_JSON):
             sort_keys=False,
             indent=4,
             separators=(",", ": "),
-        ),
+        ) + "\n",
         encoding="utf8",
     )
 
