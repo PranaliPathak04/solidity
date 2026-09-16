@@ -7,8 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import update_bugs
-
+import update_bugs_json
 
 class UpdateBugsTest(unittest.TestCase):
     """Test generation of the JSON bug list from YAML."""
@@ -21,7 +20,7 @@ class UpdateBugsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_json = Path(temp_dir) / "bugs.json"
 
-            update_bugs.update_bugs(bugs_yaml, output_json)
+            update_bugs_json.update_bugs(bugs_yaml, output_json)
 
             generated = json.loads(output_json.read_text(encoding="utf8"))
             expected = json.loads(expected_json.read_text(encoding="utf8"))
