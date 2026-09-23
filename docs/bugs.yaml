@@ -1,6 +1,7 @@
 - uid: SOL-2026-6
   name: MisorderedNamedParametersInRequireWithCustomErrors
-  summary: Custom error arguments passed to ``require`` using named-parameter syntax are ABI-encoded in call-site order instead of declaration order when compiling via IR.
+  summary: >-
+    Custom error arguments passed to ``require`` using named-parameter syntax are ABI-encoded in call-site order instead of declaration order when compiling via IR.
   description: >-
     When a custom error was passed into the second argument of ``require`` and instantiated using named parameter syntax (e.g., ``require(condition, MyError({b: 1, a: 2}))``), the IR-based code generator would pass the arguments to the ABI encoder in the order they appeared at the call site, without reordering them to match the error definition.
     The arguments were type-checked against the parameters with matching names, not the ones they were actually passed into by the codegen, so the bug would not result in a compilation error.
@@ -22,7 +23,8 @@
 
 - uid: SOL-2026-5
   name: MemoryByteArrayElementDeleteClearsWholeWord
-  summary: Applying ``delete`` to a single element of a ``bytes`` array in memory clears not only that element but the whole 32-byte word starting at the element's location, zeroing up to 31 bytes beyond the element.
+  summary: >-
+    Applying ``delete`` to a single element of a ``bytes`` array in memory clears not only that element but the whole 32-byte word starting at the element's location, zeroing up to 31 bytes beyond the element.
   description: >-
     Elements of ``bytes`` arrays in memory are packed, each occupying a single byte.
     When a value is assigned to such an element, the evmasm code generator correctly stores it with a single-byte ``MSTORE8`` instruction.
@@ -44,7 +46,8 @@
 
 - uid: SOL-2026-4
   name: SpillSlotCollisionAcrossMutualRecursion
-  summary: Local variables of two simultaneously active functions moved to fixed memory offsets by the stack limit evader may be assigned the same offset if the call graph contains mutual recursion, so that one variable is silently overwritten by the other.
+  summary: >-
+    Local variables of two simultaneously active functions moved to fixed memory offsets by the stack limit evader may be assigned the same offset if the call graph contains mutual recursion, so that one variable is silently overwritten by the other.
   description: >-
     To work around the 16-slot stack access limit of the EVM, the IR-based code generator can, under some preconditions, move local variables to fixed memory offsets.
     Variables that can never be active at the same time may safely share an offset, so the reserved memory area is sized by a depth-first walk of the call graph that computes for every node the number of slots it and its callees need.
